@@ -1,0 +1,7 @@
+Hippocampus
+Amygdala
+Caudate
+Putamen
+Pallidum
+Thalamus
+Accumbens

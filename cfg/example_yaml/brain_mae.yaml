@@ -1,0 +1,18 @@
+system:
+  project: PROJE
+  exp_name: BRAIN_MAE_70
+  n_threads: 8
+  ckpt_dir: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/ckpt'
+  seed: 0
+
+train: 
+  niter: 200
+  niter_decay: 100
+  type: 'mae'
+
+data: 
+  mae_root: '/labs/wanglab/projects/NeurIPS-Clean-T1T2'
+  mae_domain: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/cfg/example_yaml/mae_domain.txt'
+  mae_test_list: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/cfg/example_yaml/sub_list_final.csv'
+model:
+  pretrain_model: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/pretrain_model/model_infant8k_pretrained.pth' 

@@ -1,0 +1,26 @@
+system:
+  project: PROJ
+  exp_name: X_site_70_final
+  n_threads: 8
+  ckpt_dir: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/ckpt_mpl'
+  seed: 0
+
+train: 
+  lr: 1e-4 
+  batch_size: 1
+  weight_decay: 0.01
+  betas: (0.9, 0.999)
+  niter: 200
+  niter_decay: 100
+  type: 'mpl'
+  mask_ratio: 0.7
+  
+data: 
+  val_img: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/val_data/MCRIB_T2_img'
+  val_label: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/val_data/MCRIB_T2_label'
+  src_data: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/src_data'
+  tgt_data: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/tgt_data'
+
+model:
+  pretrain_model: '/opt/localdata/data/usr-envs/ruiying/Code/NeurIPS/MAPSeg-main/ckpt/PROJE/BRAIN_MAE_70/model_final.pth'
+  large_scale: True
