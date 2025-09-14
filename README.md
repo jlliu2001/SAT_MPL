@@ -1,19 +1,19 @@
 # SAT-MPL
 
-## 1. Data preprocessing
+# 1. Data preprocessing
 
-# 1.1 extract subcortical regions from original labels
+## 1.1 extract subcortical regions from original labels
 python /SAT_MPL/MPL_extract_subcortical_label.py --data_dir $dataset_dir --text_path "/SAT_MPL/data/1131_1_seg_Label.txt"
 
-# 1.2 data transfer and preprocess
+## 1.2 data transfer and preprocess
 python /SAT_MPL/preprocess_private_brain_data.py --root_path $dataset_dir --output_jsonl 'your_output_jsonl_file' --dataset_name 'PrivateBrainData' --modality MRI
 python /SAT_MPL/convert_to_npy.py --jsonl2load 'your_output_jsonl_file' --jsonl2save 'your_output_npy_jsonl_file' --image_npy_dir 'your_processed_npy_files_dir'
 
-## 2. training
-# 2.1 add the pretrained model
+# 2. training
+## 2.1 add the pretrained model
 The download link of text encoder and the unet encoder(for the pretrained transformer decoder):https://huggingface.co/zzh99/SAT/tree/main/Others/UNET-Ours
 
-# 2.2 start training
+## 2.2 start training
 the details can be seen in the "/SAT_MPL/sh/train_private_brain_mplseg.sh" file
 bash "/SAT_MPL/sh/train_private_brain_mplseg.sh"
 ```
@@ -53,7 +53,7 @@ torchrun --nproc_per_node=${NPROC_PER_NODE} /SAT_MPL/train_mplseg.py \
     --resume false \
     --pin_memory False
 ```
-# 3. evaluation
+## 3. evaluation
 the details can be seen in the "/SAT_MPL/sh/evaluate_sat_mplseg.sh" file
 bash "/SAT_MPL/sh/evaluate_sat_mplseg.sh"
 ```
