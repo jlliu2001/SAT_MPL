@@ -84,6 +84,7 @@ torchrun --nproc_per_node=${NPROC_PER_NODE} /data0/user/jlliu/git_pull_repos/SAT
     --weight_decay 0.01 \
     --partial_load false \
     --resume false \
+    --cfg_file "/data0/user/jlliu/git_pull_repos/SAT_MPL/cfg/example_yaml/X_site_finetune70_testtime.yaml" \
     --pin_memory False
 
 echo ""

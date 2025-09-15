@@ -75,5 +75,6 @@ torchrun \
 --max_queries 256 \
 --pin_memory False \
 --num_workers 4 \
+--cfg_file "/data0/user/jlliu/git_pull_repos/SAT_MPL/cfg/example_yaml/X_site_finetune70_testtime.yaml" \
 --dice True \
 --nsd True
