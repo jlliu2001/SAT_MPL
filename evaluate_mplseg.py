@@ -12,12 +12,13 @@ from pathlib import Path
 import torch.distributed as dist
 
 from data.evaluate_dataset_mpl import Evaluate_Dataset_MPL, Evaluate_Dataset_OnlineCrop_MPL, collate_fn_mpl
+from data.inference_dataset_mpl import Inference_Dataset_MPL, Inference_Dataset_OnlineCrop_MPL
 from model.build_model_mapseg import (
     build_maskformer_MPLseg,
     load_checkpoint_MPLseg
 )
 from model.text_encoder import Text_Encoder
-from evaluate.evaluator_mpl import evaluate_mpl
+from evaluate.evaluator_mpl import evaluate_mpl, inference_mpl
 from train.dist import is_master
 from evaluate.params_mapseg import parse_args_mapseg
 
@@ -72,31 +73,61 @@ def main(args):
                     
     # dataset and loader - use MPL-specific classes
     # MPL uses 96x96x96 patches instead of SAT's crop_size
-    mpl_patch_size = [96, 96, 96] 
+    mpl_patch_size = [96, 96, 96]
     norm_perc = getattr(args, 'norm_perc', 100)  # Default normalization percentile
-    
+
+    # Determine if this is inference mode (no ground truth evaluation)
+    is_inference_mode = not args.dice and not args.nsd
+    print('args.dice:',args.dice)
+    print('args.nsd:',args.nsd)
+
     if is_master():
         print(f'** MPL Evaluation ** : Using patch size {mpl_patch_size}')
         print(f'** MPL Evaluation ** : Normalization percentile {norm_perc}')
-    
-    if args.online_crop:
-        testset = Evaluate_Dataset_OnlineCrop_MPL(
-            args.datasets_jsonl, 
-            args.max_queries, 
-            args.batchsize_3d, 
-            mpl_patch_size,
-            norm_perc,
-            evaluated_samples
-        )
+        if is_inference_mode:
+            print(f'** MPL Inference Mode ** : Running inference without ground truth masks')
+
+    # Choose dataset class based on mode
+    if is_inference_mode:
+        # Inference mode: use dataset without mask loading
+        if args.online_crop:
+            testset = Inference_Dataset_OnlineCrop_MPL(
+                args.datasets_jsonl,
+                args.max_queries,
+                args.batchsize_3d,
+                mpl_patch_size,
+                norm_perc,
+                evaluated_samples
+            )
+        else:
+            testset = Inference_Dataset_MPL(
+                args.datasets_jsonl,
+                args.max_queries,
+                args.batchsize_3d,
+                mpl_patch_size,
+                norm_perc,
+                evaluated_samples
+            )
     else:
-        testset = Evaluate_Dataset_MPL(
-            args.datasets_jsonl, 
-            args.max_queries, 
-            args.batchsize_3d, 
-            mpl_patch_size,
-            norm_perc, 
-            evaluated_samples
-        )
+        # Evaluation mode: use dataset with mask loading
+        if args.online_crop:
+            testset = Evaluate_Dataset_OnlineCrop_MPL(
+                args.datasets_jsonl,
+                args.max_queries,
+                args.batchsize_3d,
+                mpl_patch_size,
+                norm_perc,
+                evaluated_samples
+            )
+        else:
+            testset = Evaluate_Dataset_MPL(
+                args.datasets_jsonl,
+                args.max_queries,
+                args.batchsize_3d,
+                mpl_patch_size,
+                norm_perc,
+                evaluated_samples
+            )
     sampler = DistributedSampler(testset)
     testloader = DataLoader(testset, sampler=sampler, batch_size=1, pin_memory=args.pin_memory, num_workers=args.num_workers, collate_fn=collate_fn_mpl, shuffle=False)
     sampler.set_epoch(0)
@@ -138,17 +169,44 @@ def main(args):
             print('** Warning ** : No checkpoint specified, using random weights')
     
     # choose how to evaluate the checkpoint - use MPL-specific evaluator
-    evaluate_mpl(model=model,
-                 text_encoder=text_encoder,
-                 device=device,
-                 testset=testset,
-                 testloader=testloader,
-                 csv_path=csv_path,
-                 resume=args.resume,
-                 save_interval=args.save_interval,
-                 dice_score=args.dice,
-                 nsd_score=args.nsd,
-                 visualization=args.visualization)
+    # Support Test-Time Augmentation (TTA) if specified
+    use_tta = False
+    tta_num_transforms = 1
+
+    if is_master() and use_tta:
+        print(f'** TTA Enabled ** : Using {tta_num_transforms} transformations for Test-Time Augmentation')
+
+    # Call appropriate function based on mode
+    if is_inference_mode:
+        # Inference mode: no metrics calculation
+        if is_master():
+            print(f'** MPL Inference ** : Running inference without metric calculation')
+        inference_mpl(model=model,
+                      text_encoder=text_encoder,
+                      device=device,
+                      testset=testset,
+                      testloader=testloader,
+                      csv_path=csv_path,
+                      resume=args.resume,
+                      save_interval=args.save_interval,
+                      visualization=args.visualization,
+                      use_tta=use_tta,
+                      tta_num_transforms=tta_num_transforms)
+    else:
+        # Evaluation mode: with metrics calculation
+        evaluate_mpl(model=model,
+                     text_encoder=text_encoder,
+                     device=device,
+                     testset=testset,
+                     testloader=testloader,
+                     csv_path=csv_path,
+                     resume=args.resume,
+                     save_interval=args.save_interval,
+                     dice_score=args.dice,
+                     nsd_score=args.nsd,
+                     visualization=args.visualization,
+                     use_tta=use_tta,
+                     tta_num_transforms=tta_num_transforms)
 
 if __name__ == '__main__':
     # get configs

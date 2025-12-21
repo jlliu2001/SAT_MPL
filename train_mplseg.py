@@ -29,6 +29,15 @@ from train.loss import BinaryDiceLoss
 from train.scheduler import cosine_lr
 from train.trainer import Trainer, Trainer_MPL
 from train.dist import is_master
+from train.loss_softmax import SoftmaxDiceLoss, SoftmaxCELoss
+
+# ProtoAtlas imports (optional)
+try:
+    from proto_atlas_adapter import create_proto_atlas_adapter, create_proto_atlas_mse_adapter
+    PROTO_ATLAS_AVAILABLE = True
+except ImportError:
+    PROTO_ATLAS_AVAILABLE = False
+    print("Warning: proto_atlas_adapter not available. ProtoAtlas loss disabled.")
 
 def set_seed(config):
     seed = config.seed
@@ -90,9 +99,9 @@ def get_trainable_parameters(model, text_encoder, args):
     # Get model parameters (excluding frozen encoder parts)
     for name, param in model.named_parameters():
         # Skip encoder parameters if they should be frozen
-        if args.vision_backbone == 'MAPSeg_MAE' and getattr(args, 'freeze_encoder', True):
-            if any(encoder_part in name for encoder_part in ['mpl']):
-                continue
+        # if args.vision_backbone == 'MAPSeg_MAE' and getattr(args, 'freeze_encoder', True):
+        #     if any(encoder_part in name for encoder_part in ['mpl']):
+        #         continue
             # elif any(encoder_part in name for encoder_part in ['transformer_decoder','query_proj','mask_embed_proj']):
             #     continue
         trainable_params.append(param)
@@ -176,15 +185,77 @@ def main():
     
     # Freeze encoder and text encoder for MAPSeg fine-tuning
     if args.vision_backbone == 'MAPSeg_MAE':
-        if getattr(args, 'freeze_encoder', True):
-            freeze_mapseg_encoder(model)
+        # if getattr(args, 'freeze_encoder', True):
+        #     freeze_mapseg_encoder(model)
+        #     print('------freeze MAPseg------')
             # freeze_transformer_decoder(model)
         if getattr(args, 'freeze_text_encoder', True):
             freeze_text_encoder(text_encoder)
     
     # set loss calculator
-    dice_loss = BinaryDiceLoss(reduction='none')
+    # dice_loss = BinaryDiceLoss(reduction='none')
+    dice_loss = SoftmaxDiceLoss(reduction='none')
     bce_w_logits_loss = nn.BCEWithLogitsLoss(reduction='none') # safe for amp
+
+    # ========================================
+    # ProtoAtlas Loss Adapter (Optional)
+    # ========================================
+    proto_atlas_adapter = None
+    if PROTO_ATLAS_AVAILABLE and getattr(args, 'use_proto_atlas', False):
+        if is_master():
+            print("\n" + "=" * 80)
+            print("Initializing ProtoAtlas Loss Adapter")
+            print("=" * 80)
+
+        # Define all label names (must match pretraining)
+        all_label_names = ["hippocampus", "amygdala", "caudate", "putamen",
+                          "pallidum", "thalamus", "accumbens"]
+
+        try:
+            # proto_atlas_adapter = create_proto_atlas_adapter(
+            #     shape_prior_path=args.shape_prior_path,
+            #     shape_encoder_path=args.shape_encoder_path,
+            #     loc_prior_path=args.loc_prior_path,
+            #     loc_encoder_path=args.loc_encoder_path,
+            #     all_label_names=all_label_names,
+            #     device=device,
+            #     lambda_atlas=getattr(args, 'lambda_atlas', 0.5),
+            #     lambda_shape=getattr(args, 'lambda_shape', 0.5),
+            #     lambda_loc=getattr(args, 'lambda_loc', 0.5),
+            #     use_location_loss=getattr(args, 'use_location_loss', True),
+            #     shape_emb_dim=getattr(args, 'shape_emb_dim', 128),
+            #     loc_emb_dim=getattr(args, 'loc_emb_dim', 64),
+            #     use_e3nn=getattr(args, 'use_e3nn', False)
+            # )
+
+            proto_atlas_adapter = create_proto_atlas_mse_adapter(
+                shape_encoder_path=args.shape_encoder_path,
+                loc_prior_path=args.loc_prior_path,
+                loc_encoder_path=args.loc_encoder_path,
+                all_label_names=all_label_names,
+                device=device,
+                lambda_atlas=getattr(args, 'lambda_atlas', 0.5),
+                lambda_shape=getattr(args, 'lambda_shape', 0.5),
+                lambda_loc=getattr(args, 'lambda_loc', 0.5),
+                use_location_loss=getattr(args, 'use_location_loss', True),
+                shape_emb_dim=getattr(args, 'shape_emb_dim', 128),
+                loc_emb_dim=getattr(args, 'loc_emb_dim', 128),
+                use_e3nn=getattr(args, 'use_e3nn', False)
+            )
+            
+
+            if is_master():
+                print("\n✓ ProtoAtlas adapter created successfully!")
+                print(f"  lambda_atlas: {getattr(args, 'lambda_atlas', 0.5)}")
+                print(f"  lambda_shape: {getattr(args, 'lambda_shape', 0.5)}")
+                print(f"  lambda_loc: {getattr(args, 'lambda_loc', 0.5)}")
+                print(f"  use_location_loss: {getattr(args, 'use_location_loss', True)}")
+
+        except Exception as e:
+            if is_master():
+                print(f"\n✗ Failed to create ProtoAtlas adapter: {e}")
+                print("  Continuing with standard training (no ProtoAtlas loss)")
+            proto_atlas_adapter = None
     
     # set optimizer with differential learning rates for MAPSeg_MAE
     if args.vision_backbone == 'MAPSeg_MAE':
@@ -291,9 +362,10 @@ def main():
                 scheduler=scheduler,
                 tb_writer=tb_writer,
                 checkpoint_dir=checkpoint_dir,
-                log_file=log_file
+                log_file=log_file,
+                proto_atlas_adapter=proto_atlas_adapter  # Pass ProtoAtlas adapter (can be None)
                 )
-            # 
+            #
     
     # MAPSeg specific training callbacks
     if args.vision_backbone == 'MAPSeg_MAE':
@@ -322,7 +394,7 @@ def main():
         # accmulate grad
         for accum in range(args.accumulate_grad_interval):
             
-            trainer.train_one_step(step,samples_per_epoch=50)
+            trainer.train_one_step(step,samples_per_epoch=20)
     
     # trainer.train()
     
