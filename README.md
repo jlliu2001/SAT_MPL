@@ -1,4 +1,6 @@
-# SAT-MPL
+# NeuroLangSeg
+
+This repository accompanies the paper "NeuroLangSeg: Language-Guided Subcortical Segmentation with Pseudo-Supervision and Anatomical–Linguistic Validation" to appear at MIDL 2026.
 
 # 1. Data preprocessing
 
@@ -229,3 +231,15 @@ python example_proto_atlas_evaluator.py \
 - Model comparison: Compare different models' anatomical plausibility
 - Active learning: Select uncertain samples for manual review
 - Test-time adaptation: Detect distribution shift in new datasets
+
+## 🔗 Citation
+
+If you find this work useful in your research, please cite our paper:
+```bibtex
+@inproceedings{NeuroLangSeg,
+  title={NeuroLangSeg: Language-Guided Subcortical Segmentation with Pseudo-Supervision and Anatomical–Linguistic Validation},
+  author={Ruiying Liu and Jialu Liu and Xuzhe Zhang and Chuan Huang and Yun Wang},
+  booktitle={Proceedings of machine learning research},
+  year={2026}
+}
+```
