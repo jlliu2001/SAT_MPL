@@ -1,6 +1,6 @@
 # NeuroLangSeg
 
-This repository accompanies the paper "NeuroLangSeg: Language-Guided Subcortical Segmentation with Pseudo-Supervision and Anatomical–Linguistic Validation" to appear at MIDL 2026.
+This repository accompanies the paper "[NeuroLangSeg: Language-Guided Subcortical Segmentation with Pseudo-Supervision and Anatomical–Linguistic Validation](https://pmc.ncbi.nlm.nih.gov/articles/PMC13155643/)" to appear at MIDL 2026.
 
 # 1. Data preprocessing
 
